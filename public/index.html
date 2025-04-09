@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ma Carte Live</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 90vh; width: 100%; } /* Prend presque toute la hauteur */
+        h1 { text-align: center; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<h1>Suivi en Temps Réel</h1>
+<div id="map"></div>
+
+<script>
+    let map;
+    let marker;
+    // Coordonnées initiales par défaut (au cas où le serveur ne répond pas tout de suite)
+    let currentLat = -18.8792;
+    let currentLng = 47.5079;
+
+    // Fonction pour initialiser la carte
+    function initializeMap(lat, lon) {
+        // Si la carte n'existe pas encore, on la crée
+        if (!map) {
+            map = L.map('map').setView([lat, lon], 13); // Niveau de zoom 13
+
+            // Ajouter le fond de carte OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Créer le marqueur initial
+            marker = L.marker([lat, lon]).addTo(map);
+            marker.bindPopup("Position actuelle").openPopup();
+        } else {
+             // Si la carte existe déjà, on la centre juste
+             map.setView([lat, lon]);
+             marker.setLatLng([lat, lon]);
+             marker.setPopupContent(`Position : ${lat.toFixed(4)}, ${lon.toFixed(4)}`).openPopup();
+        }
+    }
+
+    // Fonction pour mettre à jour la position du marqueur (appelée après récupération des données)
+    function updateMarkerPosition(newLat, newLng) {
+        if (marker) {
+            const newLatLng = L.latLng(newLat, newLng);
+            marker.setLatLng(newLatLng);
+            // Optionnel: recentrer la carte si vous voulez qu'elle suive toujours le marqueur
+            // map.setView(newLatLng);
+            marker.setPopupContent(`Position : ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
+            console.log(`Marqueur mis à jour : Lat=${newLat}, Lng=${newLng}`);
+        } else {
+            // Si le marqueur n'existait pas (premier chargement), initialiser la carte avec ces coords
+            initializeMap(newLat, newLng);
+        }
+    }
+
+    // Fonction pour récupérer les dernières coordonnées depuis notre serveur
+    function fetchLatestCoordinates() {
+        // On appelle l'endpoint GET de notre serveur
+        fetch('/api/location') // Chemin relatif, fonctionne localement et sur Render
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                return response.json(); // Convertir la réponse en JSON
+            })
+            .then(data => {
+                // Si on reçoit bien latitude et longitude
+                if (data.latitude !== undefined && data.longitude !== undefined) {
+                    // Mettre à jour la position du marqueur
+                    updateMarkerPosition(data.latitude, data.longitude);
+                } else {
+                    console.error("Données reçues du serveur invalides:", data);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération des coordonnées:', error);
+                // Si on ne peut pas joindre le serveur, on initialise la carte avec les valeurs par défaut
+                if (!map) {
+                    initializeMap(currentLat, currentLng);
+                }
+            });
+    }
+
+    // --- Démarrage ---
+    // 1. Appeler fetchLatestCoordinates une première fois au chargement de la page
+    fetchLatestCoordinates();
+
+    // 2. Mettre en place le Polling :
+    //    Répéter l'appel à fetchLatestCoordinates toutes les 5 secondes (5000 ms)
+    setInterval(fetchLatestCoordinates, 5000);
+
+</script>
+
+</body>
+</html>
