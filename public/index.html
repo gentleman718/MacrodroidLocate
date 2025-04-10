@@ -103,36 +103,26 @@
     setInterval(fetchLatestCoordinates, 5000);
 
     async function sendMacroDroidWebhook() {
-      const webhookUrl = 'https://trigger.macrodroid.com/b923bfa9-4615-4ea1-bbc9-4161bd1a7167/locatephone';
+    const webhookUrl = 'https://trigger.macrodroid.com/b923bfa9-4615-4ea1-bbc9-4161bd1a7167/locatephone';
 
-      // Données optionnelles à envoyer
-      const data = {
-        latitude: -18.8792,
-        longitude: 47.5079
-      };
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'GET'
+      });
 
-      try {
-        const response = await fetch(webhookUrl, {
-          method: 'POST', // tu peux aussi utiliser GET si tu n'envoies rien
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data) // facultatif : envoie des coordonnées
-        });
-
-        if (response.ok) {
-          const text = await response.text(); // MacroDroid renvoie souvent un body vide
-          alert("Macro déclenché avec succès !");
-          console.log("Réponse de MacroDroid :", text);
-        } else {
-          alert("Erreur : " + response.status);
-          console.error("Réponse d’erreur :", response.status, await response.text());
-        }
-      } catch (error) {
-        alert("Erreur de connexion !");
-        console.error("Erreur réseau ou serveur :", error);
+      if (response.ok) {
+        const text = await response.text(); // souvent vide
+        alert("Macro déclenché avec succès !");
+        console.log("Réponse de MacroDroid :", text);
+      } else {
+        alert("Erreur HTTP : " + response.status);
+        console.error("Erreur :", response.status, await response.text());
       }
+    } catch (error) {
+      alert("Erreur de connexion !");
+      console.error("Erreur réseau :", error);
     }
+  }
 </script>
 
 </body>
